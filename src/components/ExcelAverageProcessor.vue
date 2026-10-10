@@ -197,12 +197,12 @@ export default {
 
       // --- 5. Заголовки ---
       const LABELS = {
-        S: 'Оцінка S',
-        W: 'Оцінка W',
-        M: 'Оцінка M',
-        P: 'Оцінка P',
-        Q: 'Оцінка Q',
-        G: 'Оцінка G',
+        S: 'Mówienie S',
+        W: 'Pisanie W',
+        M: 'M',
+        P: 'P',
+        Q: 'Słownictwo Q',
+        G: 'Gramatyka G',
       }
 
       setCell(0, K_COL, 'Student')
