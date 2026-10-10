@@ -44,6 +44,48 @@
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 
+// ---------------------------------------------------------------------------
+// Разбирает значение из столбца I в { base, num }.
+//   "Q"    → { base: 'Q', num: '' }
+//   "Q1"   → { base: 'Q', num: '1' }
+//   "Q 1"  → { base: 'Q', num: '1' }
+//   "Q-2"  → { base: 'Q', num: '2' }
+//   "1Q"   → { base: 'Q', num: '1' }
+//   "Щось" → { base: 'Щ', num: '' }
+// ---------------------------------------------------------------------------
+function parseType(raw) {
+  if (raw === '' || raw === null || raw === undefined) return null
+  const s = String(raw).trim().toUpperCase()
+  if (!s) return null
+
+  // буквы [разделитель] цифры → Q1, Q 1, Q-1, Q.1, Q_1
+  let m = s.match(/^([A-ZА-ЯЇІЄҐ]+)\s*[-_.]?\s*(\d+)/)
+  if (m) return { base: m[1], num: m[2] }
+
+  // цифры [разделитель] буквы → 1Q, 1 Q, 1-Q
+  m = s.match(/^(\d+)\s*[-_.]?\s*([A-ZА-ЯЇІЄҐ]+)/)
+  if (m) return { base: m[2], num: m[1] }
+
+  // только буквы → Q, S, W, M, P, G
+  m = s.match(/^([A-ZА-ЯЇІЄҐ]+)/)
+  if (m) return { base: m[1], num: '' }
+
+  return null
+}
+
+const BASE_LABELS = {
+  S: 'Mówienie S',
+  W: 'Pisanie W',
+  M: 'M',
+  P: 'P',
+  Q: 'Słownictwo Q',
+  G: 'Gramatyka G',
+}
+
+function baseLabelOf(base) {
+  return BASE_LABELS[base] ?? base
+}
+
 export default {
   name: 'ExcelAverageProcessor',
   data() {
@@ -106,7 +148,7 @@ export default {
     createDynamicAverageTable(workbook, sheetName, data) {
       const sheet = workbook.Sheets[sheetName]
 
-      // --- 1. Определяем lastRow по столбцу F (idx 5) ---
+      // --- 1. lastRow по столбцу F (idx 5) ---
       let lastRow = 0
       for (let r = data.length - 1; r >= 0; r--) {
         const v = data[r]?.[5]
@@ -121,11 +163,11 @@ export default {
         return
       }
 
-      // --- 2. Уникальные студенты и типы ---
+      // --- 2. Студенты + множество базовых букв и полных ключей ---
       const students = []
-      const types = []
       const studentSet = new Set()
-      const typeSet = new Set()
+      const baseSet = new Set() // только буквы: Q, W, G, S…
+      const fullSet = new Set() // буква+цифра: Q1, Q2, W1…
 
       for (let i = 1; i <= lastRow; i++) {
         const name = data[i]?.[5] ?? ''
@@ -139,16 +181,57 @@ export default {
           }
         }
 
-        if (t !== '' && t !== null && t !== undefined) {
-          const key = String(t).charAt(0)
-          if (!typeSet.has(key)) {
-            typeSet.add(key)
-            types.push(key)
-          }
+        const parsed = parseType(t)
+        if (parsed) {
+          baseSet.add(parsed.base)
+          if (parsed.num) fullSet.add(parsed.base + parsed.num)
         }
       }
 
-      // --- 3. Очистка K1:ZZ10000 ---
+      // --- 3. Формируем список колонок ---
+      // Сначала ВСЕ общие (по букве), потом ВСЕ детальные (буква+номер).
+      //
+      // Каждая колонка — это объект:
+      //   { base, num, matchNum, label }
+      // где:
+      //   matchNum === null → учитываем любые строки с этой base-буквой
+      //   matchNum === '1'  → учитываем только строки с base + 1
+      const columns = []
+
+      // 3a. Общие колонки: только буква, без номера
+      Array.from(baseSet)
+        .sort()
+        .forEach((base) => {
+          columns.push({
+            base,
+            num: '',
+            matchNum: null,
+            label: baseLabelOf(base),
+          })
+        })
+
+      // 3b. Детальные колонки: буква + номер, сортируем по букве, потом по номеру
+      Array.from(fullSet)
+        .sort((a, b) => {
+          const ma = a.match(/^([A-ZА-ЯЇІЄҐ]+)(\d+)$/)
+          const mb = b.match(/^([A-ZА-ЯЇІЄҐ]+)(\d+)$/)
+          if (!ma || !mb) return a.localeCompare(b)
+          if (ma[1] !== mb[1]) return ma[1].localeCompare(mb[1])
+          return parseInt(ma[2], 10) - parseInt(mb[2], 10)
+        })
+        .forEach((key) => {
+          const m = key.match(/^([A-ZА-ЯЇІЄҐ]+)(\d+)$/)
+          const base = m[1]
+          const num = m[2]
+          columns.push({
+            base,
+            num,
+            matchNum: num,
+            label: baseLabelOf(base) + num,
+          })
+        })
+
+      // --- 4. Очистка K1:ZZ10000 ---
       const K_COL = 10
       const ZZ_COL = 701
       const CLEAR_MAX_ROW = 10000
@@ -160,7 +243,7 @@ export default {
         }
       }
 
-      // --- 4. Запись ячейки ---
+      // --- 5. Запись ячейки ---
       const setCell = (r, c, value) => {
         const addr = XLSX.utils.encode_cell({ r, c })
         if (value === '' || value === null || value === undefined) {
@@ -171,22 +254,13 @@ export default {
         sheet[addr] = { t, v: value }
       }
 
-      // --- 5. Заголовки ---
-      const LABELS = {
-        S: 'Mówienie S',
-        W: 'Pisanie W',
-        M: 'M',
-        P: 'P',
-        Q: 'Słownictwo Q',
-        G: 'Gramatyka G',
-      }
-
+      // --- 6. Заголовки ---
       setCell(0, K_COL, 'Student')
-      types.forEach((type, idx) => {
-        setCell(0, K_COL + 1 + idx, LABELS[type] ?? type)
+      columns.forEach((col, idx) => {
+        setCell(0, K_COL + 1 + idx, col.label)
       })
 
-      // --- 6. Заполняем таблицу ---
+      // --- 7. Заполняем таблицу ---
       const vbaRound = (x) => {
         const floor = Math.floor(x)
         const diff = x - floor
@@ -199,7 +273,7 @@ export default {
         const rowOut = sIdx + 1
         setCell(rowOut, K_COL, student)
 
-        types.forEach((type, tIdx) => {
+        columns.forEach((col, cIdx) => {
           let sumVal = 0
           let countVal = 0
 
@@ -209,7 +283,14 @@ export default {
             const valueH = data[i]?.[7]
 
             if (String(nameI) !== student) continue
-            if (String(typeI ?? '').charAt(0) !== type) continue
+
+            const parsed = parseType(typeI)
+            if (!parsed) continue
+            if (parsed.base !== col.base) continue
+
+            // Для общих колонок (matchNum === null) — учитываем любые номера.
+            // Для детальных — только точное совпадение base+num.
+            if (col.matchNum !== null && parsed.num !== col.matchNum) continue
 
             if (
               valueH !== '' &&
@@ -224,14 +305,14 @@ export default {
           }
 
           if (countVal === 0) {
-            setCell(rowOut, K_COL + 1 + tIdx, '')
+            setCell(rowOut, K_COL + 1 + cIdx, '')
           } else {
-            setCell(rowOut, K_COL + 1 + tIdx, vbaRound(sumVal / countVal))
+            setCell(rowOut, K_COL + 1 + cIdx, vbaRound(sumVal / countVal))
           }
         })
       })
 
-      // --- 7. Обновляем !ref ---
+      // --- 8. Обновляем !ref ---
       const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1')
       range.e.r = Math.max(range.e.r, CLEAR_MAX_ROW - 1)
       range.e.c = Math.max(range.e.c, ZZ_COL)
