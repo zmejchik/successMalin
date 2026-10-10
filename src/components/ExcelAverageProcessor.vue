@@ -37,20 +37,6 @@
     <div v-if="message" class="snackbar" :class="{ 'snackbar--error': isError }" role="status">
       {{ message }}
     </div>
-
-    <section v-if="preview.length" class="preview">
-      <h2 class="preview-title">Предпросмотр результата</h2>
-      <p class="preview-hint">Первые 10 строк, столбцы K–T</p>
-      <div class="table-wrap">
-        <table>
-          <tr v-for="(row, i) in preview" :key="i">
-            <td v-for="(cell, j) in row" :key="j" :class="{ 'is-header': i === 0 }">
-              {{ cell }}
-            </td>
-          </tr>
-        </table>
-      </div>
-    </section>
   </div>
 </template>
 
@@ -66,19 +52,16 @@ export default {
       isProcessing: false,
       message: '',
       isError: false,
-      preview: [],
     }
   },
   methods: {
     onFileSelected(event) {
       this.file = event.target.files[0] || null
       this.message = ''
-      this.preview = []
     },
 
     reset() {
       this.file = null
-      this.preview = []
       this.message = ''
       this.isError = false
     },
@@ -102,13 +85,6 @@ export default {
         })
 
         this.createDynamicAverageTable(workbook, sheetName, data)
-
-        const updated = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-          header: 1,
-          defval: '',
-          raw: true,
-        })
-        this.preview = updated.slice(0, 10).map((r) => r.slice(10, 20))
 
         const out = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
         const blob = new Blob([out], {
@@ -428,61 +404,6 @@ export default {
   background-color: #fce8e6;
   color: #c5221f;
   border-color: #f6aea9;
-}
-
-/* ---------- Предпросмотр ---------- */
-.preview {
-  margin-top: 32px;
-}
-
-.preview-title {
-  font-family: 'Sen', sans-serif;
-  font-weight: 700;
-  font-size: 20px;
-  color: #2d3134;
-  margin: 0 0 6px;
-}
-
-.preview-hint {
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  color: #5b5f62;
-  margin: 0 0 14px;
-}
-
-.table-wrap {
-  overflow-x: auto;
-  border: 1px solid #e0dad0;
-  border-radius: 10px;
-}
-
-.preview table {
-  border-collapse: collapse;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  min-width: 100%;
-}
-
-.preview td {
-  border-right: 1px solid #f0ebe2;
-  border-bottom: 1px solid #f0ebe2;
-  padding: 10px 14px;
-  white-space: nowrap;
-  color: #2d3134;
-}
-
-.preview tr:last-child td {
-  border-bottom: none;
-}
-
-.preview td:last-child {
-  border-right: none;
-}
-
-.preview td.is-header {
-  background-color: #faf8ed;
-  font-weight: 600;
-  color: #5b5f62;
 }
 
 /* ---------- Адаптив ---------- */
