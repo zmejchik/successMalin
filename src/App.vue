@@ -2,7 +2,7 @@
   <div class="wrapper">
     <header class="navbar">
       <div class="navbar-logo">
-        <span class="navbar-logo-text">Malinovska Nataliia frorever</span>
+        <span class="navbar-logo-text">Malinovska Nataliia forever</span>
       </div>
     </header>
 
