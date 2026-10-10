@@ -83,6 +83,7 @@ const GREEN = { patternType: 'solid', fgColor: { rgb: 'C8E6C9' } }
 
 const STYLE_HEADER_DEFAULT = {
   font: { bold: true, sz: 12 },
+  alignment: { textRotation: 90, vertical: 'bottom', horizontal: 'center' },
 }
 
 // ★ Вертикальные заголовки (детальные — жёлтые)

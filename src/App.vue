@@ -2,6 +2,7 @@
   <div class="wrapper">
     <header class="navbar">
       <div class="navbar-logo">
+        <img src="/logo.svg" alt="Logo" class="navbar-logo-img" />
         <span class="navbar-logo-text">Malinovska Nataliia forever</span>
       </div>
     </header>
@@ -36,6 +37,13 @@ import ExcelAverageProcessor from './components/ExcelAverageProcessor.vue'
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.navbar-logo-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .navbar-logo-text {
