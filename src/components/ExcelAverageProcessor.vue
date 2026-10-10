@@ -41,32 +41,23 @@
 </template>
 
 <script>
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 import { saveAs } from 'file-saver'
 
 // ---------------------------------------------------------------------------
-// Разбирает значение из столбца I в { base, num }.
-//   "Q"    → { base: 'Q', num: '' }
-//   "Q1"   → { base: 'Q', num: '1' }
-//   "Q 1"  → { base: 'Q', num: '1' }
-//   "Q-2"  → { base: 'Q', num: '2' }
-//   "1Q"   → { base: 'Q', num: '1' }
-//   "Щось" → { base: 'Щ', num: '' }
+// Парсинг типа из столбца I
 // ---------------------------------------------------------------------------
 function parseType(raw) {
   if (raw === '' || raw === null || raw === undefined) return null
   const s = String(raw).trim().toUpperCase()
   if (!s) return null
 
-  // буквы [разделитель] цифры → Q1, Q 1, Q-1, Q.1, Q_1
   let m = s.match(/^([A-ZА-ЯЇІЄҐ]+)\s*[-_.]?\s*(\d+)/)
   if (m) return { base: m[1], num: m[2] }
 
-  // цифры [разделитель] буквы → 1Q, 1 Q, 1-Q
   m = s.match(/^(\d+)\s*[-_.]?\s*([A-ZА-ЯЇІЄҐ]+)/)
   if (m) return { base: m[2], num: m[1] }
 
-  // только буквы → Q, S, W, M, P, G
   m = s.match(/^([A-ZА-ЯЇІЄҐ]+)/)
   if (m) return { base: m[1], num: '' }
 
@@ -85,6 +76,18 @@ const BASE_LABELS = {
 function baseLabelOf(base) {
   return BASE_LABELS[base] ?? base
 }
+
+// -------- Стили --------
+// Светло-жёлтая заливка (Material Light Yellow 100)
+const STYLE_YELLOW = {
+  fill: {
+    patternType: 'solid',
+    fgColor: { rgb: 'FFF9C4' },
+  },
+}
+
+// Обычный стиль (без заливки) — можно добавить рамки по желанию
+const STYLE_DEFAULT = {}
 
 export default {
   name: 'ExcelAverageProcessor',
@@ -148,7 +151,7 @@ export default {
     createDynamicAverageTable(workbook, sheetName, data) {
       const sheet = workbook.Sheets[sheetName]
 
-      // --- 1. lastRow по столбцу F (idx 5) ---
+      // --- 1. lastRow по столбцу F ---
       let lastRow = 0
       for (let r = data.length - 1; r >= 0; r--) {
         const v = data[r]?.[5]
@@ -163,11 +166,11 @@ export default {
         return
       }
 
-      // --- 2. Студенты + множество базовых букв и полных ключей ---
+      // --- 2. Студенты, базовые буквы, полные ключи ---
       const students = []
       const studentSet = new Set()
-      const baseSet = new Set() // только буквы: Q, W, G, S…
-      const fullSet = new Set() // буква+цифра: Q1, Q2, W1…
+      const baseSet = new Set()
+      const fullSet = new Set()
 
       for (let i = 1; i <= lastRow; i++) {
         const name = data[i]?.[5] ?? ''
@@ -188,29 +191,20 @@ export default {
         }
       }
 
-      // --- 3. Формируем список колонок ---
-      // Сначала ВСЕ общие (по букве), потом ВСЕ детальные (буква+номер).
-      //
-      // Каждая колонка — это объект:
-      //   { base, num, matchNum, label }
-      // где:
-      //   matchNum === null → учитываем любые строки с этой base-буквой
-      //   matchNum === '1'  → учитываем только строки с base + 1
+      // --- 3. Колонки: сначала общие, потом детальные ---
       const columns = []
 
-      // 3a. Общие колонки: только буква, без номера
       Array.from(baseSet)
         .sort()
         .forEach((base) => {
           columns.push({
             base,
-            num: '',
             matchNum: null,
             label: baseLabelOf(base),
+            isDetail: false,
           })
         })
 
-      // 3b. Детальные колонки: буква + номер, сортируем по букве, потом по номеру
       Array.from(fullSet)
         .sort((a, b) => {
           const ma = a.match(/^([A-ZА-ЯЇІЄҐ]+)(\d+)$/)
@@ -225,9 +219,9 @@ export default {
           const num = m[2]
           columns.push({
             base,
-            num,
             matchNum: num,
             label: baseLabelOf(base) + num,
+            isDetail: true,
           })
         })
 
@@ -243,21 +237,21 @@ export default {
         }
       }
 
-      // --- 5. Запись ячейки ---
-      const setCell = (r, c, value) => {
+      // --- 5. Запись ячейки со стилем ---
+      const setCell = (r, c, value, style) => {
         const addr = XLSX.utils.encode_cell({ r, c })
         if (value === '' || value === null || value === undefined) {
           delete sheet[addr]
           return
         }
         const t = typeof value === 'number' ? 'n' : 's'
-        sheet[addr] = { t, v: value }
+        sheet[addr] = { t, v: value, s: style || STYLE_DEFAULT }
       }
 
       // --- 6. Заголовки ---
-      setCell(0, K_COL, 'Student')
+      setCell(0, K_COL, 'Student', STYLE_DEFAULT)
       columns.forEach((col, idx) => {
-        setCell(0, K_COL + 1 + idx, col.label)
+        setCell(0, K_COL + 1 + idx, col.label, col.isDetail ? STYLE_YELLOW : STYLE_DEFAULT)
       })
 
       // --- 7. Заполняем таблицу ---
@@ -271,7 +265,7 @@ export default {
 
       students.forEach((student, sIdx) => {
         const rowOut = sIdx + 1
-        setCell(rowOut, K_COL, student)
+        setCell(rowOut, K_COL, student, STYLE_DEFAULT)
 
         columns.forEach((col, cIdx) => {
           let sumVal = 0
@@ -287,9 +281,6 @@ export default {
             const parsed = parseType(typeI)
             if (!parsed) continue
             if (parsed.base !== col.base) continue
-
-            // Для общих колонок (matchNum === null) — учитываем любые номера.
-            // Для детальных — только точное совпадение base+num.
             if (col.matchNum !== null && parsed.num !== col.matchNum) continue
 
             if (
@@ -304,10 +295,21 @@ export default {
             }
           }
 
+          const style = col.isDetail ? STYLE_YELLOW : STYLE_DEFAULT
+
           if (countVal === 0) {
-            setCell(rowOut, K_COL + 1 + cIdx, '')
+            // Пустые ячейки тоже закрашиваем, чтобы столбец выглядел цельным
+            if (col.isDetail) {
+              const addr = XLSX.utils.encode_cell({
+                r: rowOut,
+                c: K_COL + 1 + cIdx,
+              })
+              sheet[addr] = { t: 's', v: '', s: STYLE_YELLOW }
+            } else {
+              setCell(rowOut, K_COL + 1 + cIdx, '', style)
+            }
           } else {
-            setCell(rowOut, K_COL + 1 + cIdx, vbaRound(sumVal / countVal))
+            setCell(rowOut, K_COL + 1 + cIdx, vbaRound(sumVal / countVal), style)
           }
         })
       })
