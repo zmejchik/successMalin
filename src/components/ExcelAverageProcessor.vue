@@ -86,14 +86,12 @@ const STYLE_HEADER_DEFAULT = {
   alignment: { textRotation: 90, vertical: 'bottom', horizontal: 'center' },
 }
 
-// ★ Вертикальные заголовки (детальные — жёлтые)
 const STYLE_HEADER_YELLOW = {
   font: { bold: true, sz: 12 },
   fill: YELLOW,
   alignment: { textRotation: 90, vertical: 'bottom', horizontal: 'center' },
 }
 
-// ★ Вертикальные заголовки (средние — зелёные)
 const STYLE_HEADER_GREEN = {
   font: { bold: true, sz: 12 },
   fill: GREEN,
@@ -395,6 +393,7 @@ export default {
   line-height: 40px;
   color: #2d3134;
   margin: 0 0 12px;
+  word-wrap: break-word;
 }
 
 .card-subtitle {
@@ -427,6 +426,7 @@ export default {
   cursor: pointer;
   text-align: center;
   transition: background 0.2s ease, border-color 0.2s ease;
+  min-height: 160px;
 }
 
 .drop-zone:hover {
@@ -454,6 +454,9 @@ export default {
 
 .drop-zone__icon {
   opacity: 0.9;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
 }
 
 .drop-zone__title {
@@ -478,6 +481,7 @@ export default {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .btn {
@@ -491,12 +495,15 @@ export default {
   letter-spacing: 0.2px;
   cursor: pointer;
   transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn--primary {
   background-color: #f66f4d;
   color: #ffffff;
   box-shadow: 0px 4px 12px rgba(246, 111, 77, 0.25);
+  flex: 1 1 auto;
+  min-width: 180px;
 }
 
 .btn--primary:hover:not(:disabled) {
@@ -515,6 +522,7 @@ export default {
   background: transparent;
   color: #2e476b;
   padding: 0 16px;
+  flex: 0 0 auto;
 }
 
 .btn--text:hover {
@@ -532,6 +540,7 @@ export default {
   background-color: #e6f4ea;
   color: #137333;
   border: 1px solid #ceead6;
+  word-wrap: break-word;
 }
 
 .snackbar--error {
@@ -540,25 +549,97 @@ export default {
   border-color: #f6aea9;
 }
 
-/* ---------- Адаптив ---------- */
+/* ---------- Планшет (до 900px) ---------- */
+@media (max-width: 900px) {
+  .card {
+    padding: 32px 28px 26px;
+  }
+
+  .card-title {
+    font-size: 26px;
+    line-height: 34px;
+  }
+}
+
+/* ---------- Мобильные (до 640px) ---------- */
 @media (max-width: 640px) {
   .card {
-    padding: 24px 20px;
+    padding: 24px 20px 20px;
     border-radius: 8px;
   }
 
   .card-title {
-    font-size: 24px;
-    line-height: 32px;
+    font-size: 22px;
+    line-height: 28px;
+    margin-bottom: 8px;
+  }
+
+  .card-subtitle {
+    font-size: 14px;
+    line-height: 22px;
+    margin-bottom: 24px;
+  }
+
+  .uploader {
+    gap: 16px;
+  }
+
+  .drop-zone {
+    padding: 24px 16px;
+    min-height: 140px;
+  }
+
+  .drop-zone__icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .drop-zone__title {
+    font-size: 14px;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .drop-zone__hint {
+    font-size: 12px;
   }
 
   .actions {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
+  }
+
+  .btn {
+    width: 100%;
+    height: 46px;
+    padding: 0 16px;
+    min-width: 0;
   }
 
   .btn--text {
     height: 40px;
+  }
+
+  .snackbar {
+    font-size: 13px;
+    padding: 12px 14px;
+  }
+}
+
+/* ---------- Очень узкие экраны (до 380px) ---------- */
+@media (max-width: 380px) {
+  .card {
+    padding: 20px 16px 16px;
+  }
+
+  .card-title {
+    font-size: 19px;
+    line-height: 25px;
+  }
+
+  .drop-zone {
+    padding: 20px 12px;
   }
 }
 </style>

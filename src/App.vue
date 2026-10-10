@@ -37,6 +37,7 @@ import ExcelAverageProcessor from './components/ExcelAverageProcessor.vue'
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .navbar-logo-img {
@@ -51,6 +52,9 @@ import ExcelAverageProcessor from './components/ExcelAverageProcessor.vue'
   font-weight: 700;
   font-size: 20px;
   color: #2d3134;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .menu {
@@ -77,18 +81,63 @@ import ExcelAverageProcessor from './components/ExcelAverageProcessor.vue'
   justify-content: center;
 }
 
-@media (max-width: 768px) {
+/* ---------- Планшет (до 900px) ---------- */
+@media (max-width: 900px) {
+  .wrapper {
+    padding: 0 16px;
+    margin: 16px auto 40px;
+  }
+
   .navbar {
-    flex-direction: column;
+    margin-bottom: 40px;
+  }
+}
+
+/* ---------- Мобильные (до 640px) ---------- */
+@media (max-width: 640px) {
+  .wrapper {
+    padding: 0 12px;
+    margin: 12px auto 32px;
+  }
+
+  .navbar {
     height: auto;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 32px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0ebe2;
+  }
+
+  .navbar-logo {
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .navbar-logo-img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .navbar-logo-text {
+    font-size: 16px;
   }
 
   .menu {
     margin-left: 0;
     gap: 20px;
+  }
+}
+
+/* ---------- Очень узкие экраны (до 380px) ---------- */
+@media (max-width: 380px) {
+  .navbar-logo-text {
+    font-size: 14px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
   }
 }
 </style>
