@@ -1,7 +1,7 @@
 <template>
   <div class="card">
-    <h1 class="card-title">Створення динамічної таблиці даних</h1>
-    <p class="card-subtitle">Завантаж і не парся щас все буде, а може і ні</p>
+    <h1 class="card-title">Tworzenie dynamicznej tabeli danych</h1>
+    <p class="card-subtitle">Załaduj plik i nie przejmuj się — wszystko będzie, a może i nie</p>
 
     <div class="uploader">
       <label class="drop-zone" :class="{ 'has-file': file, disabled: isProcessing }">
@@ -18,18 +18,18 @@
           />
         </svg>
         <span class="drop-zone__title">
-          {{ file ? file.name : 'Выберите файл или перетащите его сюда' }}
+          {{ file ? file.name : 'Wybierz plik lub przeciągnij go tutaj' }}
         </span>
-        <span class="drop-zone__hint">Поддерживаются форматы .xlsx, .xls, .xlsm, .csv</span>
+        <span class="drop-zone__hint">Obsługiwane formaty: .xlsx, .xls, .xlsm, .csv</span>
       </label>
 
       <div class="actions">
         <button class="btn btn--primary" @click="processFile" :disabled="!file || isProcessing">
-          {{ isProcessing ? 'Обробка…' : 'Розрахувати' }}
+          {{ isProcessing ? 'Przetwarzanie…' : 'Oblicz' }}
         </button>
 
         <button v-if="file && !isProcessing" class="btn btn--text" @click="reset" type="button">
-          Сбросить
+          Wyczyść
         </button>
       </div>
     </div>
@@ -85,14 +85,18 @@ const STYLE_HEADER_DEFAULT = {
   font: { bold: true, sz: 12 },
 }
 
+// ★ Вертикальные заголовки (детальные — жёлтые)
 const STYLE_HEADER_YELLOW = {
   font: { bold: true, sz: 12 },
   fill: YELLOW,
+  alignment: { textRotation: 90, vertical: 'bottom', horizontal: 'center' },
 }
 
+// ★ Вертикальные заголовки (средние — зелёные)
 const STYLE_HEADER_GREEN = {
   font: { bold: true, sz: 12 },
   fill: GREEN,
+  alignment: { textRotation: 90, vertical: 'bottom', horizontal: 'center' },
 }
 
 const STYLE_BODY_DEFAULT = {}
@@ -153,11 +157,11 @@ export default {
         })
         saveAs(blob, `average_${this.file.name.replace(/\.[^.]+$/, '')}.xlsx`)
 
-        this.message = 'Таблица успешно создана. Файл скачан.'
+        this.message = 'Tabela została pomyślnie utworzona. Plik został pobrany.'
         this.isError = false
       } catch (err) {
         console.error(err)
-        this.message = 'Ошибка: ' + err.message
+        this.message = 'Błąd: ' + err.message
         this.isError = true
       } finally {
         this.isProcessing = false
@@ -178,7 +182,7 @@ export default {
       }
 
       if (lastRow < 1) {
-        alert('No data')
+        alert('Brak danych')
         return
       }
 
@@ -208,8 +212,6 @@ export default {
       }
 
       // --- 3. Формируем колонки ---
-      //   1) Общие (без номера)
-      //   2) Группы по номерам: детальные + Średnia N
       const columns = []
 
       // 3a. Общие
