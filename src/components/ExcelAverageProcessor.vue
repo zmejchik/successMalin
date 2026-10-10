@@ -77,17 +77,33 @@ function baseLabelOf(base) {
   return BASE_LABELS[base] ?? base
 }
 
-// -------- Стили --------
-// Светло-жёлтая заливка (Material Light Yellow 100)
-const STYLE_YELLOW = {
-  fill: {
-    patternType: 'solid',
-    fgColor: { rgb: 'FFF9C4' },
-  },
+// ---------- Стили ----------
+const YELLOW = { patternType: 'solid', fgColor: { rgb: 'FFF9C4' } }
+const GREEN = { patternType: 'solid', fgColor: { rgb: 'C8E6C9' } }
+
+const STYLE_HEADER_DEFAULT = {
+  font: { bold: true, sz: 12 },
 }
 
-// Обычный стиль (без заливки) — можно добавить рамки по желанию
-const STYLE_DEFAULT = {}
+const STYLE_HEADER_YELLOW = {
+  font: { bold: true, sz: 12 },
+  fill: YELLOW,
+}
+
+const STYLE_HEADER_GREEN = {
+  font: { bold: true, sz: 12 },
+  fill: GREEN,
+}
+
+const STYLE_BODY_DEFAULT = {}
+
+const STYLE_BODY_YELLOW = {
+  fill: YELLOW,
+}
+
+const STYLE_BODY_GREEN = {
+  fill: GREEN,
+}
 
 export default {
   name: 'ExcelAverageProcessor',
@@ -191,38 +207,56 @@ export default {
         }
       }
 
-      // --- 3. Колонки: сначала общие, потом детальные ---
+      // --- 3. Формируем колонки ---
+      //   1) Общие (без номера)
+      //   2) Группы по номерам: детальные + Średnia N
       const columns = []
 
+      // 3a. Общие
       Array.from(baseSet)
         .sort()
         .forEach((base) => {
           columns.push({
+            type: 'base',
             base,
             matchNum: null,
             label: baseLabelOf(base),
-            isDetail: false,
           })
         })
 
-      Array.from(fullSet)
-        .sort((a, b) => {
-          const ma = a.match(/^([A-ZА-ЯЇІЄҐ]+)(\d+)$/)
-          const mb = b.match(/^([A-ZА-ЯЇІЄҐ]+)(\d+)$/)
-          if (!ma || !mb) return a.localeCompare(b)
-          if (ma[1] !== mb[1]) return ma[1].localeCompare(mb[1])
-          return parseInt(ma[2], 10) - parseInt(mb[2], 10)
-        })
-        .forEach((key) => {
-          const m = key.match(/^([A-ZА-ЯЇІЄҐ]+)(\d+)$/)
-          const base = m[1]
-          const num = m[2]
-          columns.push({
-            base,
-            matchNum: num,
-            label: baseLabelOf(base) + num,
-            isDetail: true,
+      // 3b. Группы по номерам
+      const numSet = new Set()
+      Array.from(fullSet).forEach((key) => {
+        const m = key.match(/^([A-ZА-ЯЇІЄҐ]+)(\d+)$/)
+        if (m) numSet.add(m[2])
+      })
+
+      Array.from(numSet)
+        .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+        .forEach((num) => {
+          const basesWithNum = Array.from(baseSet)
+            .filter((base) => fullSet.has(base + num))
+            .sort()
+
+          // Детальные колонки
+          basesWithNum.forEach((base) => {
+            columns.push({
+              type: 'detail',
+              base,
+              matchNum: num,
+              label: baseLabelOf(base) + num,
+            })
           })
+
+          // Колонка среднего для группы
+          if (basesWithNum.length > 0) {
+            columns.push({
+              type: 'average',
+              num,
+              bases: basesWithNum,
+              label: `Średnia ${num}`,
+            })
+          }
         })
 
       // --- 4. Очистка K1:ZZ10000 ---
@@ -241,17 +275,27 @@ export default {
       const setCell = (r, c, value, style) => {
         const addr = XLSX.utils.encode_cell({ r, c })
         if (value === '' || value === null || value === undefined) {
-          delete sheet[addr]
+          if (style && style.fill) {
+            sheet[addr] = { t: 's', v: '', s: style }
+          } else {
+            delete sheet[addr]
+          }
           return
         }
         const t = typeof value === 'number' ? 'n' : 's'
-        sheet[addr] = { t, v: value, s: style || STYLE_DEFAULT }
+        sheet[addr] = { t, v: value, s: style || STYLE_BODY_DEFAULT }
       }
 
       // --- 6. Заголовки ---
-      setCell(0, K_COL, 'Student', STYLE_DEFAULT)
+      const headerStyleFor = (col) => {
+        if (col.type === 'average') return STYLE_HEADER_GREEN
+        if (col.type === 'detail') return STYLE_HEADER_YELLOW
+        return STYLE_HEADER_DEFAULT
+      }
+
+      setCell(0, K_COL, 'Student', STYLE_HEADER_DEFAULT)
       columns.forEach((col, idx) => {
-        setCell(0, K_COL + 1 + idx, col.label, col.isDetail ? STYLE_YELLOW : STYLE_DEFAULT)
+        setCell(0, K_COL + 1 + idx, col.label, headerStyleFor(col))
       })
 
       // --- 7. Заполняем таблицу ---
@@ -263,9 +307,26 @@ export default {
         return floor % 2 === 0 ? floor : floor + 1
       }
 
+      const rowMatchesColumn = (col, parsed) => {
+        if (!parsed) return false
+        if (col.type === 'average') {
+          return parsed.num === col.num && col.bases.includes(parsed.base)
+        }
+        if (col.type === 'detail') {
+          return parsed.base === col.base && parsed.num === col.matchNum
+        }
+        return parsed.base === col.base
+      }
+
+      const bodyStyleFor = (col) => {
+        if (col.type === 'average') return STYLE_BODY_GREEN
+        if (col.type === 'detail') return STYLE_BODY_YELLOW
+        return STYLE_BODY_DEFAULT
+      }
+
       students.forEach((student, sIdx) => {
         const rowOut = sIdx + 1
-        setCell(rowOut, K_COL, student, STYLE_DEFAULT)
+        setCell(rowOut, K_COL, student, STYLE_BODY_DEFAULT)
 
         columns.forEach((col, cIdx) => {
           let sumVal = 0
@@ -273,16 +334,12 @@ export default {
 
           for (let i = 1; i <= lastRow; i++) {
             const nameI = data[i]?.[5]
-            const typeI = data[i]?.[8]
-            const valueH = data[i]?.[7]
-
             if (String(nameI) !== student) continue
 
-            const parsed = parseType(typeI)
-            if (!parsed) continue
-            if (parsed.base !== col.base) continue
-            if (col.matchNum !== null && parsed.num !== col.matchNum) continue
+            const parsed = parseType(data[i]?.[8])
+            if (!rowMatchesColumn(col, parsed)) continue
 
+            const valueH = data[i]?.[7]
             if (
               valueH !== '' &&
               valueH !== null &&
@@ -295,19 +352,10 @@ export default {
             }
           }
 
-          const style = col.isDetail ? STYLE_YELLOW : STYLE_DEFAULT
+          const style = bodyStyleFor(col)
 
           if (countVal === 0) {
-            // Пустые ячейки тоже закрашиваем, чтобы столбец выглядел цельным
-            if (col.isDetail) {
-              const addr = XLSX.utils.encode_cell({
-                r: rowOut,
-                c: K_COL + 1 + cIdx,
-              })
-              sheet[addr] = { t: 's', v: '', s: STYLE_YELLOW }
-            } else {
-              setCell(rowOut, K_COL + 1 + cIdx, '', style)
-            }
+            setCell(rowOut, K_COL + 1 + cIdx, '', style)
           } else {
             setCell(rowOut, K_COL + 1 + cIdx, vbaRound(sumVal / countVal), style)
           }
