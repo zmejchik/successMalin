@@ -3,7 +3,7 @@
     <header class="navbar">
       <div class="navbar-logo">
         <img src="/logo.svg" alt="Logo" class="navbar-logo-img" />
-        <span class="navbar-logo-text">Malinovska Nataliia forever</span>
+        <span class="navbar-logo-text">Success school!</span>
       </div>
     </header>
 

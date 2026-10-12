@@ -1,7 +1,7 @@
 <template>
   <div class="card">
     <h1 class="card-title">Tworzenie dynamicznej tabeli danych</h1>
-    <p class="card-subtitle">Załaduj plik i nie przejmuj się — wszystko będzie, a może i nie</p>
+    <p class="card-subtitle">Załaduj plik</p>
 
     <div class="uploader">
       <label class="drop-zone" :class="{ 'has-file': file, disabled: isProcessing }">
@@ -71,6 +71,7 @@ const BASE_LABELS = {
   P: 'P',
   Q: 'Słownictwo Q',
   G: 'Gramatyka G',
+  E: 'Ewaluacja E',
 }
 
 function baseLabelOf(base) {
@@ -425,7 +426,9 @@ export default {
   background-color: #faf8ed;
   cursor: pointer;
   text-align: center;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
   min-height: 160px;
 }
 
@@ -494,7 +497,10 @@ export default {
   font-weight: 600;
   letter-spacing: 0.2px;
   cursor: pointer;
-  transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
