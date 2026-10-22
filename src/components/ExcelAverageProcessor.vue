@@ -1,7 +1,7 @@
 <template>
   <div class="card">
     <h1 class="card-title">Tworzenie dynamicznej tabeli danych</h1>
-    <p class="card-subtitle">Załaduj plik</p>
+    <p class="card-subtitle">Załaduj plik i nie przejmuj się — wszystko będzie, a może i nie</p>
 
     <div class="uploader">
       <label class="drop-zone" :class="{ 'has-file': file, disabled: isProcessing }">
@@ -71,7 +71,6 @@ const BASE_LABELS = {
   P: 'P',
   Q: 'Słownictwo Q',
   G: 'Gramatyka G',
-  E: 'Ewaluacja E',
 }
 
 function baseLabelOf(base) {
@@ -330,7 +329,14 @@ export default {
         const rowOut = sIdx + 1
         setCell(rowOut, K_COL, student, STYLE_BODY_DEFAULT)
 
+        // ★★ ПЕРВЫЙ ПРОХОД: общие и детальные колонки.
+        // Запоминаем посчитанные детальные значения в detailValues
+        // вида { 'G1': 4, 'Q1': 5, 'W1': '', ... }
+        const detailValues = {}
+
         columns.forEach((col, cIdx) => {
+          if (col.type === 'average') return // средние — во втором проходе
+
           let sumVal = 0
           let countVal = 0
 
@@ -355,12 +361,34 @@ export default {
           }
 
           const style = bodyStyleFor(col)
+          const value = countVal === 0 ? '' : vbaRound(sumVal / countVal)
+          setCell(rowOut, K_COL + 1 + cIdx, value, style)
 
-          if (countVal === 0) {
-            setCell(rowOut, K_COL + 1 + cIdx, '', style)
-          } else {
-            setCell(rowOut, K_COL + 1 + cIdx, vbaRound(sumVal / countVal), style)
+          // Для детальных колонок — запоминаем значение под ключом "G1", "Q1" и т.д.
+          if (col.type === 'detail') {
+            detailValues[col.base + col.matchNum] = value
           }
+        })
+
+        // ★★ ВТОРОЙ ПРОХОД: колонки Średnia N.
+        // Берём уже посчитанные средние по каждой букве группы и усредняем их.
+        columns.forEach((col, cIdx) => {
+          if (col.type !== 'average') return
+
+          let sumAvg = 0
+          let countAvg = 0
+
+          col.bases.forEach((base) => {
+            const v = detailValues[base + col.num]
+            // Пустые (нет данных по этой букве) — НЕ учитываем
+            if (v !== '' && v !== null && v !== undefined && !isNaN(Number(v))) {
+              sumAvg += Number(v)
+              countAvg += 1
+            }
+          })
+
+          const value = countAvg === 0 ? '' : vbaRound(sumAvg / countAvg)
+          setCell(rowOut, K_COL + 1 + cIdx, value, STYLE_BODY_GREEN)
         })
       })
 
@@ -426,9 +454,7 @@ export default {
   background-color: #faf8ed;
   cursor: pointer;
   text-align: center;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
   min-height: 160px;
 }
 
@@ -497,10 +523,7 @@ export default {
   font-weight: 600;
   letter-spacing: 0.2px;
   cursor: pointer;
-  transition:
-    background 0.2s ease,
-    box-shadow 0.2s ease,
-    color 0.2s ease;
+  transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
